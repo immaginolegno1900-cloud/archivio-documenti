@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Archivio Documenti</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fffdf9;--tx:#3d3a35;--mut:#8a857b;--ac:#9bb5a4;--acd:#6f8f7c;--bd:#e4dfd3;--warn:#c98f8f}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:70px}
+header{padding:14px 16px;font-size:20px;font-weight:600;background:var(--card);border-bottom:1px solid var(--bd)}
+main{max-width:640px;margin:0 auto;padding:14px}
+label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
+input,select,textarea,button{font:inherit;width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;background:#fff;color:var(--tx)}
+.row{display:flex;gap:8px}.row>*{flex:1}.row .small{flex:0 0 auto;width:auto}
+button{background:var(--ac);border:0;color:#fff;font-weight:600;cursor:pointer}
+button.sec{background:#e9e5da;color:var(--tx)}button.del{background:var(--warn)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin:10px 0}
+.card b{display:block}.mut{color:var(--mut);font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;max-height:96px;overflow:auto}
+.chip{background:#e9e5da;border-radius:999px;padding:6px 12px;font-size:14px;cursor:pointer}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd)}
+nav button{background:none;color:var(--mut);border-radius:0;padding:14px 2px;font-size:12px}
+nav button.on{color:var(--acd);border-top:3px solid var(--ac)}
+.hide{display:none}.msg{color:var(--acd);font-size:14px;margin-top:8px}
+#toast{position:fixed;top:10px;left:10px;right:10px;z-index:20;padding:14px;border-radius:12px;background:var(--acd);color:#fff;font-weight:600;text-align:center}
+#toast.err{background:var(--warn)}
+#vw{position:fixed;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column}#vw.hide{display:none}
+#vwb{flex:1;overflow:auto;padding:8px}#vwt{display:flex;gap:6px;padding:8px;background:var(--card);border-bottom:1px solid var(--bd)}#vwt button{padding:9px 6px;font-size:14px}
+#bar{position:fixed;left:0;right:0;bottom:52px;z-index:6;background:var(--card);border-top:1px solid var(--bd);padding:8px 10px;display:flex;gap:6px;align-items:center;box-shadow:0 -2px 8px rgba(0,0,0,.08)}
+#bar.hide{display:none}#bar span{font-size:14px;flex:0 0 auto}#bar select{width:auto;flex:1;padding:9px}#bar button{width:auto;padding:9px 12px;font-size:14px}
+.sel{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:14px}.sel input{width:auto}
+#cl{position:fixed;inset:0;background:#bdb9ae;z-index:12;display:flex;flex-direction:column}#cl.hide{display:none}
+#clt{display:flex;gap:6px;align-items:center;padding:8px;background:var(--card);border-bottom:1px solid var(--bd)}#clt button{width:auto;padding:10px 14px;font-size:14px}#clt span{flex:1;font-size:13px;color:var(--mut)}
+#clb{flex:1;overflow:auto;padding:8px}
+.fw{margin:0 auto 12px}.foglio{position:relative;width:210mm;height:296mm;background:#fff;transform-origin:top left;box-shadow:0 1px 6px rgba(0,0,0,.3);overflow:hidden}
+.foglio img{position:absolute;outline:.2mm solid #b5b5b5}
+@page{size:A4;margin:0}
+@media print{body>*:not(#cl){display:none!important}body{padding:0;background:#fff}#cl{position:static;background:#fff;display:block}#clt{display:none}#clb{overflow:visible;padding:0}.fw{width:auto!important;height:auto!important;margin:0}.foglio{transform:none!important;box-shadow:none;break-after:page;page-break-after:always}.fw:last-child .foglio{break-after:auto;page-break-after:auto}}
+</style>
+</head>
+<body>
+<div id="toast" class="hide"></div>
+<header>📁 Archivio Documenti<div class="mut" id="stato" style="font-weight:400;font-size:13px"></div></header>
+<div id="avviso" class="card hide" style="margin:10px 14px 0"><span id="avt"></span><div class="row" style="margin-top:8px"><button onclick="vai('bk')">Fai il backup</button><button class="sec" onclick="avNasc=true;ricordaBackup()">Più tardi</button></div></div>
+<main>
+
+<section id="p-add">
+<label>Tipo di documento</label>
+<div class="row"><select id="tipo"></select><button class="del small" type="button" title="Elimina la voce selezionata" onclick="togli('tipi','tipo',this)">🗑</button></div>
+<div class="row" style="margin-top:6px"><input id="n-tipo" placeholder="Non c'è? Scrivi qui il nuovo tipo"><button class="sec small" type="button" onclick="aggiungi('tipi','tipo')">Aggiungi</button></div>
+<div class="row"><div><label>Numero documento</label><input id="num"></div><div><label>Data</label><input id="data" type="date"></div></div>
+<label>Ente che ha emesso il documento</label>
+<div class="row"><select id="ente"></select><button class="del small" type="button" title="Elimina la voce selezionata" onclick="togli('enti','ente',this)">🗑</button></div>
+<div class="row" style="margin-top:6px"><input id="n-ente" placeholder="Non c'è? Scrivi qui il nuovo ente"><button class="sec small" type="button" onclick="aggiungi('enti','ente')">Aggiungi</button></div>
+<label>Descrizione</label><textarea id="desc" rows="3"></textarea>
+<label>Totale (€)</label><input id="tot" type="number" step="0.01" inputmode="decimal">
+<label class="sel" style="margin-top:12px"><input type="checkbox" id="detr"> Detraibile</label>
+<label>Documento PDF (dalla galleria / file)</label>
+<div class="row"><input id="pdf" type="file" accept=".pdf,application/pdf,*/*" onchange="fileScelto()"><button class="sec small" type="button" onclick="vediSel()">👁 Vedi</button></div>
+<div class="msg" id="m1"></div>
+<div style="margin-top:16px"><button id="salva" type="button" onclick="salva()">Salva in archivio</button></div>
+</section>
+
+<section id="p-find" class="hide">
+<label>Cerca per parola chiave nella descrizione</label>
+<input id="q" type="search" placeholder="Scrivi una parola…" oninput="cerca()">
+<div class="row"><div><label>Anno</label><select id="anno" onchange="cerca()"></select></div><div><label>Tipo</label><select id="ftipo" onchange="cerca()"></select></div></div>
+<label>Ente</label><select id="fente" onchange="cerca()"></select>
+<div class="row"><div><label>Dal</label><input id="dal" type="date" onchange="cerca()"></div><div><label>Al</label><input id="al" type="date" onchange="cerca()"></div></div>
+<label class="sel" style="margin-top:12px"><input type="checkbox" id="fdetr" onchange="cerca()"> Solo documenti detraibili</label>
+<div style="margin-top:10px"><button class="sec" onclick="azzera()">↺ Azzera i filtri</button></div>
+<div class="row" style="margin-top:8px"><button class="sec" onclick="selTutti()">☑ Seleziona tutti</button><button class="sec" onclick="deseleziona()">☐ Deseleziona tutti</button></div>
+<div id="res"></div>
+</section>
+
+<section id="p-type" class="hide">
+<label>Ordina per tipo di documento</label>
+<div id="bytype"></div>
+</section>
+
+<section id="p-trash" class="hide"><div class="mut" id="ctinfo"></div><div id="ctl"></div></section>
+
+<section id="p-bk" class="hide">
+<div class="card"><b>Salva un backup</b><div class="mut">Scegli cosa salvare. Il nome del file riporta il criterio e la data di oggi. I PDF sono inclusi.</div>
+<label>Cosa salvare</label>
+<select id="bscope" onchange="bfill()"><option value="tutto">Tutto l’archivio</option><option value="anno">Un anno</option><option value="tipo">Un tipo di documento</option></select>
+<select id="bval" class="hide" style="margin-top:6px"></select>
+<div style="margin-top:12px"><button onclick="backup()">Salva backup</button></div>
+<div class="mut" id="bkinfo" style="margin-top:10px"></div></div>
+<div class="card"><b>Ripristina da backup</b><div class="mut">Scegli il file: poi decidi se integrare o sostituire, e se ripristinare tutto o solo un anno o un tipo.</div><br>
+<input type="file" id="rest" accept=".json,*/*" onchange="leggiBackup(this.files[0])">
+<div id="rbox" class="hide">
+<p class="mut" id="rinfo"></p>
+<label>Cosa fare</label>
+<select id="rmodo"><option value="int">Integra: aggiungi solo i documenti mancanti</option><option value="sost">Sostituisci: cancella e rimpiazza con il backup</option></select>
+<label>Quale parte del backup</label>
+<select id="rs" onchange="rsCambia()"><option value="tutto">Tutto il file</option><option value="anno">Solo un anno</option><option value="tipo">Solo un tipo di documento</option></select>
+<select id="rv" class="hide" style="margin-top:6px"></select>
+<div style="margin-top:12px"><button id="rbtn" onclick="ripristina()">Ripristina</button></div>
+</div></div>
+<div class="msg" id="m2"></div>
+</section>
+
+</main>
+<nav>
+<button class="on" onclick="vai('add',this)">📝 Inserisci</button>
+<button onclick="vai('find',this)">🔍 Cerca</button>
+<button onclick="vai('type',this)">🗂 Per tipo</button>
+<button onclick="vai('bk',this)">💾 Backup</button>
+<button onclick="vai('trash',this)">🗑 Cestino</button>
+</nav>
+
+<div id="bar" class="hide"><span id="barn"></span><select id="perf"><option value="auto">Per foglio: automatico</option><option value="1">1 per foglio</option><option value="2">2 per foglio</option><option value="4">4 per foglio</option><option value="6">6 per foglio</option></select><button onclick="collage()">🖼 Collage A4</button><button class="sec" onclick="deseleziona()">☐ Nessuno</button></div>
+<div id="cl" class="hide"><div id="clt"><button class="sec" onclick="chiudiCollage()">✕ Chiudi</button><button onclick="window.print()" id="btnStampa">🖨 Stampa</button><button class="sec" onclick="collagePdf()">📄 PDF</button><span id="cli"></span></div><div id="clb"></div></div>
+<div id="vw" class="hide"><div id="vwt"><button class="sec" onclick="chiudi()">✕ Chiudi</button><button onclick="apriTab()">Apri</button></div><div id="vwb"></div></div>
+
+<script>
+let db=null,useLS=false,docs=[],meta={tipi:['Fattura','Ricevuta','Documento','Tasse','Altro'],enti:[]},editId=null,tT=null;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const eur=n=>n===''||n==null?'':Number(n).toLocaleString('it-IT',{style:'currency',currency:'EUR'});
+const dt=d=>d?d.split('-').reverse().join('/'):'';
+const norm=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function toast(t,err){const e=$('toast');e.textContent=t;e.className=err?'err':'';clearTimeout(tT);tT=setTimeout(()=>e.className='hide',err?7000:2500)}
+
+/* --- archivio: IndexedDB, con ripiego su localStorage --- */
+function openDB(){return new Promise((ok,ko)=>{
+ const to=setTimeout(()=>ko(new Error('timeout')),3000);
+ try{const r=indexedDB.open('archivioDocs',1);
+  r.onupgradeneeded=()=>{r.result.createObjectStore('docs',{keyPath:'id',autoIncrement:true});r.result.createObjectStore('meta')};
+  r.onsuccess=()=>{clearTimeout(to);ok(r.result)};r.onerror=()=>{clearTimeout(to);ko(r.error)};r.onblocked=()=>ko(new Error('bloccato'))
+ }catch(e){clearTimeout(to);ko(e)}})}
+const tx=(s,m,fn)=>new Promise((ok,ko)=>{const t=db.transaction(s,m),st=t.objectStore(s),rq=fn(st);t.oncomplete=()=>ok(rq&&rq.result);t.onerror=()=>ko(t.error);t.onabort=()=>ko(t.error||new Error('operazione annullata'))});
+const LS=(k,v)=>v===undefined?JSON.parse(localStorage.getItem(k)||'null'):localStorage.setItem(k,JSON.stringify(v));
+async function getAll(){return useLS?(LS('ad_docs')||[]):tx('docs','readonly',s=>s.getAll())}
+async function putDoc(o){
+ if(useLS){const a=LS('ad_docs')||[];if(!o.id){o.id=LS('ad_next')||1;LS('ad_next',o.id+1)}
+  const i=a.findIndex(x=>x.id===o.id);if(i>=0)a[i]=o;else a.push(o);LS('ad_docs',a);return}
+ return tx('docs','readwrite',s=>s.put(o))}
+async function delDoc(id){if(useLS){LS('ad_docs',(LS('ad_docs')||[]).filter(x=>x.id!==id));return}return tx('docs','readwrite',s=>s.delete(id))}
+async function putMeta(){if(useLS){LS('ad_meta',meta);return}return tx('meta','readwrite',s=>s.put(meta,'lists'))}
+
+let tutti=[],avNasc=false,dupOk=false;const GIORNI=30;
+async function carica(){tutti=await getAll();docs=tutti.filter(d=>!d.cestino)}
+async function svuotaScaduti(){const lim=Date.now()-GIORNI*864e5;for(const d of tutti.filter(x=>x.cestino&&x.cestino<lim))await delDoc(d.id)}
+const giorniDa=d=>Math.floor((Date.now()-new Date(d+'T00:00:00'))/864e5);
+function ricordaBackup(){
+ const u=meta.ultimoBackup,g=u?giorniDa(u):null,serve=docs.length>0&&(g===null||g>=30);
+ $('avviso').classList.toggle('hide',!serve||avNasc);
+ if(serve)$('avt').textContent=g===null?'⚠️ Non hai ancora fatto un backup completo dell’archivio.':'⚠️ L’ultimo backup completo risale a '+g+' giorni fa ('+dt(u)+').';
+ $('bkinfo').textContent=u?'Ultimo backup completo: '+dt(u)+' ('+(g<=0?'oggi':g===1?'1 giorno fa':g+' giorni fa')+')':'Nessun backup completo fatto finora.'}
+function segnaBackup(m){if(m==='tutto'){meta.ultimoBackup=oggiL();putMeta().catch(()=>{});ricordaBackup()}}
+async function init(){
+ $('data').value=new Date().toISOString().slice(0,10);
+ try{db=await openDB();const m=await tx('meta','readonly',s=>s.get('lists'));if(m)meta=m}
+ catch(e){useLS=true;try{const m=LS('ad_meta');if(m)meta=m}catch(x){}}
+ try{await carica();await svuotaScaduti();await carica()}catch(e){docs=[];tutti=[];toast('Archivio non leggibile: '+(e&&e.message||e),true)}
+ if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+ fill();cerca();tipi();stato();
+ const rd=()=>{if(dupOk){dupOk=false;$('salva').textContent=editId?'Salva modifiche':'Salva in archivio'}};
+ ['num','data','ente','desc','tot'].forEach(i=>{$(i).addEventListener('input',rd);$(i).addEventListener('change',rd)});
+}
+function stato(){$('stato').textContent='Documenti in archivio: '+docs.length;ricordaBackup()}
+function fill(){
+ for(const [k,id] of [['tipi','tipo'],['enti','ente']]){
+  const cur=$(id).value;
+  $(id).innerHTML='<option value="">— scegli dall\'elenco —</option>'+meta[k].map(t=>`<option>${esc(t)}</option>`).join('');
+  $(id).value=cur}
+}
+async function aggiungi(k,id){
+ const v=$('n-'+id).value.trim();if(!v)return;
+ let ex=meta[k].find(x=>x.toLowerCase()===v.toLowerCase());
+ if(!ex){meta[k].push(v);ex=v}
+ fill();$(id).value=ex;$('n-'+id).value='';
+ try{await putMeta();toast('«'+ex+'» aggiunto all\'elenco ✓')}
+ catch(e){toast('⚠️ Aggiunto ma non memorizzato: '+(e&&e.message||e),true)}
+}
+function readFile(f){return new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>ko(r.error);r.readAsDataURL(f)})}
+let tgId=null;
+async function togli(k,id,btn){
+ const v=$(id).value;
+ if(!v){toast('Scegli prima dal menu la voce da eliminare',true);return}
+ if(tgId!==id+'|'+v){tgId=id+'|'+v;btn.textContent='Sicuro?';setTimeout(()=>{tgId=null;btn.textContent='🗑'},3000);return}
+ tgId=null;btn.textContent='🗑';
+ const n=docs.filter(d=>(d[id]||'')===v).length;
+ meta[k]=meta[k].filter(x=>x!==v);fill();$(id).value='';
+ try{await putMeta();toast('«'+v+'» eliminato dall’elenco'+(n?' (resta nei '+n+(n===1?' documento':' documenti')+' che lo usano)':''))}
+ catch(e){toast('⚠️ Non eliminato: '+(e&&e.message||e),true)}
+}
+function fileScelto(){const f=$('pdf').files[0];$('m1').textContent=f?'Selezionato: '+f.name:''}
+
+async function salva(){
+ const f=$('pdf').files[0];
+ for(const [k,id] of [['tipi','tipo'],['enti','ente']])if($('n-'+id).value.trim())await aggiungi(k,id);
+ const o={tipo:$('tipo').value.trim(),num:$('num').value.trim(),data:$('data').value,ente:$('ente').value.trim(),desc:$('desc').value.trim(),tot:$('tot').value,detr:$('detr').checked};
+ const nd=d=>(d.num?['n',d.num,d.ente,d.data]:['x',d.data,d.ente,d.tot,d.desc]).map(x=>String(x==null?'':x).trim().toLowerCase()).join('|');
+ if(!editId&&!dupOk&&(o.num||o.desc)){const k=nd(o),dup=docs.find(d=>nd(d)===k);
+  if(dup){dupOk=true;$('salva').textContent='Salva comunque';$('m1').textContent='⚠️ Sembra già presente: '+(dup.tipo||'Documento')+' '+(dup.num||'')+' del '+dt(dup.data)+' ('+(dup.ente||'ente non indicato')+'). Tocca «Salva comunque» per salvarlo lo stesso.';return}}
+ dupOk=false;
+ try{
+  if(editId){const old=docs.find(d=>d.id===editId);if(old){o.id=editId;o.pdf=old.pdf;o.pdfName=old.pdfName}}
+  if(f){o.pdf=await readFile(f);o.pdfName=f.name}
+  for(const [k,v] of [['tipi',o.tipo],['enti',o.ente]])
+   if(v&&!meta[k].some(x=>x.toLowerCase()===v.toLowerCase()))meta[k].push(v);
+  await putDoc(o);await putMeta();
+  await carica();
+ }catch(e){toast('⚠️ Non salvato: '+(e&&e.message||e),true);return}
+ const era=editId;editId=null;
+ ['tipo','num','ente','desc','tot'].forEach(i=>$(i).value='');$('detr').checked=false;
+ $('pdf').value='';$('m1').textContent='';$('data').value=new Date().toISOString().slice(0,10);
+ $('salva').textContent='Salva in archivio';
+ fill();cerca();tipi();stato();window.scrollTo(0,0);
+ toast((era?'Modifiche salvate ✓':'Salvato in archivio ✓')+' ('+docs.length+' documenti)');
+}
+
+function card(d,opt){return `<div class="card"><b>${esc(d.tipo||'Documento')} ${esc(d.num)} · ${dt(d.data)}</b><div class="mut">${esc(d.ente||'(ente non indicato)')}${d.tot!==''&&d.tot!=null?' · '+eur(d.tot):''}${d.detr?' · <span style="color:var(--acd);font-weight:600">✓ Detraibile</span>':''}</div><div>${esc(d.desc)}</div>${opt===true&&d.pdf?`<label class="sel"><input type="checkbox" ${sel.has(d.id)?'checked':''} onchange="togg(${d.id},this.checked)"> Seleziona per il collage</label>`:''}<div class="row" style="margin-top:8px">${d.pdf?`<button onclick="apri(${d.id})">📄 Vedi PDF</button>`:''}<button class="sec" onclick="modifica(${d.id})">✏️ Modifica</button><button class="del" onclick="elimina(${d.id},this)">🗑</button></div></div>`}
+const cron=(a,b)=>(a.data?0:1)-(b.data?0:1)||(b.data||'').localeCompare(a.data||'')||b.id-a.id;
+let ultimi=[];const sel=new Set();
+function popola(id,etich,vals,nessuno,nl){
+ const cur=$(id).value;
+ $(id).innerHTML='<option value="">'+etich+'</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('')+(nessuno?`<option value="-">${nl}</option>`:'');
+ $(id).value=[...$(id).options].some(o=>o.value===cur)?cur:''}
+function azzera(){['q','dal','al'].forEach(i=>$(i).value='');['anno','ftipo','fente'].forEach(i=>$(i).value='');$('fdetr').checked=false;cerca()}
+function cerca(){
+ popola('anno','Tutti gli anni',[...new Set(docs.filter(d=>d.data).map(d=>d.data.slice(0,4)))].sort().reverse(),docs.some(d=>!d.data),'Senza data');
+ popola('ftipo','Tutti i tipi',[...new Set(docs.filter(d=>d.tipo).map(d=>d.tipo))].sort(),docs.some(d=>!d.tipo),'(senza tipo)');
+ popola('fente','Tutti gli enti',[...new Set(docs.filter(d=>d.ente).map(d=>d.ente))].sort(),docs.some(d=>!d.ente),'(senza ente)');
+ const an=$('anno').value,ft=$('ftipo').value,fe=$('fente').value,dal=$('dal').value,al=$('al').value;
+ const w=norm($('q').value).split(/\s+/).filter(Boolean);
+ const r=docs.filter(d=>{
+  if(an==='-'?d.data:(an&&(d.data||'').slice(0,4)!==an))return false;
+  if(ft==='-'?d.tipo:(ft&&d.tipo!==ft))return false;
+  if(fe==='-'?d.ente:(fe&&d.ente!==fe))return false;
+  if(dal&&(!d.data||d.data<dal))return false;
+  if(al&&(!d.data||d.data>al))return false;
+  if($('fdetr').checked&&!d.detr)return false;
+  const t=norm([d.desc,d.num,d.ente,d.tipo].join(' '));return w.every(x=>t.includes(x))}).sort(cron);
+ const som=l=>l.reduce((a,d)=>a+(parseFloat(d.tot)||0),0),dd=r.filter(d=>d.detr);
+ $('res').innerHTML=r.length?`<div class="card"><b>${r.length} document${r.length===1?'o':'i'}</b><div class="mut">Totale: ${eur(som(r))}${dd.length?' · di cui detraibili: '+eur(som(dd))+' ('+dd.length+')':''}</div></div>`+(ultimi=r).map(d=>card(d,true)).join(''):'<p class="mut">Nessun documento trovato.</p>';
+}
+function tipi(){
+ const g={};docs.forEach(d=>{const k=d.tipo||'(senza tipo)';(g[k]=g[k]||[]).push(d)});
+ const ks=Object.keys(g).sort();
+ $('bytype').innerHTML=ks.length?ks.map(k=>{const e={};g[k].forEach(d=>{const n=d.ente||'(senza ente)';(e[n]=e[n]||[]).push(d)});
+  return `<details class="card"><summary><b style="display:inline">${esc(k)}</b> <span class="mut">(${g[k].length})</span></summary>`+
+  Object.keys(e).sort().map(n=>`<details style="margin:8px 0 0 10px"><summary>${esc(n)} <span class="mut">(${e[n].length})</span></summary>${e[n].sort(cron).map(card).join('')}</details>`).join('')+`</details>`}).join(''):'<p class="mut">Archivio vuoto.</p>';
+}
+
+/* --- visualizzatore PDF --- */
+let curB=null,pdfjsP=null;
+async function blobDi(d){if(!d||!d.pdf)return null;return typeof d.pdf==='string'?await (await fetch(d.pdf)).blob():d.pdf}
+function loadPdfjs(){
+ if(pdfjsP)return pdfjsP;
+ pdfjsP=(async()=>{
+  try{const m=await import('./pdf.min.mjs');m.GlobalWorkerOptions.workerSrc=new URL('./pdf.worker.min.mjs',location.href).href;return m}catch(e){}
+  const base='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+  await new Promise((r,j)=>{const t=document.createElement('script');t.src=base+'pdf.min.js';t.onload=r;t.onerror=j;document.head.appendChild(t)});
+  const w=await (await fetch(base+'pdf.worker.min.js')).text();
+  pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([w],{type:'text/javascript'}));
+  return pdfjsLib})();
+ pdfjsP.catch(()=>{pdfjsP=null});return pdfjsP}
+async function mostra(b){
+ curB=b;$('vw').classList.remove('hide');
+ const c=$('vwb');c.innerHTML='<p class="mut">Carico anteprima…</p>';
+ try{
+  const lib=await loadPdfjs();
+  const pdf=await lib.getDocument({data:await b.arrayBuffer()}).promise;
+  c.innerHTML='';const w=Math.min(c.clientWidth||360,900),dpr=window.devicePixelRatio||1;
+  for(let i=1;i<=pdf.numPages;i++){
+   const pg=await pdf.getPage(i),v0=pg.getViewport({scale:1}),v=pg.getViewport({scale:w/v0.width*dpr});
+   const cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;
+   cv.style.cssText='width:100%;display:block;margin-bottom:8px;background:#fff';c.appendChild(cv);
+   await pg.render({canvasContext:cv.getContext('2d'),viewport:v}).promise}
+ }catch(e){c.innerHTML='<p class="mut">Anteprima non disponibile (serve internet la prima volta). Prova il pulsante «Apri».</p>'}
+}
+function barra(){for(const id of [...sel])if(!docs.some(d=>d.id===id))sel.delete(id);$('bar').classList.toggle('hide',!sel.size);$('barn').textContent=sel.size+(sel.size===1?' selezionato':' selezionati')}
+function togg(id,on){on?sel.add(id):sel.delete(id);barra()}
+function selTutti(){ultimi.forEach(d=>{if(d.pdf)sel.add(d.id)});cerca();barra()}
+function deseleziona(){sel.clear();cerca();barra()}
+
+/* collage A4 */
+const PW=595.28,PH=841.89,PM=28.35,UW=PW-2*PM,UH=PH-2*PM,PG=8,MM=25.4/72;
+const cont=(a,b)=>a.x>=b.x-1e-6&&a.y>=b.y-1e-6&&a.x+a.w<=b.x+b.w+1e-6&&a.y+a.h<=b.y+b.h+1e-6;
+function trova(fr,w,h){
+ let b=null,bs=1e9,bl=1e9;
+ for(const r of fr)for(const rot of [0,1]){
+  if(rot&&Math.abs(w-h)<1)continue;
+  const ww=rot?h:w,hh=rot?w:h,dw=r.w-ww-PG,dh=r.h-hh-PG;
+  if(dw<-1e-6||dh<-1e-6)continue;
+  const sh=Math.min(dw,dh),lg=Math.max(dw,dh);
+  if(sh<bs||(sh===bs&&lg<bl)){bs=sh;bl=lg;b={x:r.x,y:r.y,w:ww,h:hh,rot}}}
+ return b}
+function piazza(fr,b){
+ const u={x:b.x,y:b.y,w:b.w+PG,h:b.h+PG},nf=[];
+ for(const r of fr){
+  if(u.x>=r.x+r.w||u.x+u.w<=r.x||u.y>=r.y+r.h||u.y+u.h<=r.y){nf.push(r);continue}
+  if(u.x>r.x)nf.push({x:r.x,y:r.y,w:u.x-r.x,h:r.h});
+  if(u.x+u.w<r.x+r.w)nf.push({x:u.x+u.w,y:r.y,w:r.x+r.w-u.x-u.w,h:r.h});
+  if(u.y>r.y)nf.push({x:r.x,y:r.y,w:r.w,h:u.y-r.y});
+  if(u.y+u.h<r.y+r.h)nf.push({x:r.x,y:u.y+u.h,w:r.w,h:r.y+r.h-u.y-u.h})}
+ const k=nf.filter((a,i)=>!nf.some((c,j)=>j!==i&&cont(a,c)&&(j<i||!cont(c,a))));
+ fr.length=0;k.forEach(x=>fr.push(x))}
+function maxrects(ts,f0){
+ const fogli=[],out=[],ord=ts.map((t,i)=>i).sort((a,b)=>ts[b].w*ts[b].h-ts[a].w*ts[a].h);
+ for(const i of ord){
+  const t=ts[i];let w=t.w*f0,h=t.h*f0;const c=Math.min(UW/w,UH/h,1);w*=c;h*=c;
+  let b=null,s=0;
+  for(;s<fogli.length&&!b;s++){b=trova(fogli[s],w,h);if(b)break}
+  if(!b){fogli.push([{x:0,y:0,w:UW+PG,h:UH+PG}]);s=fogli.length-1;b=trova(fogli[s],w,h)}
+  piazza(fogli[s],b);
+  out.push({i,sh:s,x:PM+b.x,y:PM+b.y,w:b.w,h:b.h,rot:b.rot})}
+ return {out,n:fogli.length}}
+function layout(ts,mode){
+ if(mode==='auto'){
+  const base=maxrects(ts,0.44);
+  for(let f=1;f>=0.44;f-=0.02){const r=maxrects(ts,f);if(r.n<=base.n)return r}
+  return base}
+ const N=+mode,[cols,rows]={1:[1,1],2:[1,2],4:[2,2],6:[2,3]}[N];
+ const cw=(UW-(cols-1)*PG)/cols,ch=(UH-(rows-1)*PG)/rows,out=[];
+ ts.forEach((t,i)=>{
+  const a=Math.min(cw/t.w,ch/t.h,2),b=Math.min(cw/t.h,ch/t.w,2),rot=b>a*1.001?1:0,sc=rot?b:a;
+  const w=(rot?t.h:t.w)*sc,h=(rot?t.w:t.h)*sc,pos=i%N,c=pos%cols,r=Math.floor(pos/cols);
+  out.push({i,sh:Math.floor(i/N),x:PM+c*(cw+PG)+(cw-w)/2,y:PM+r*(ch+PG)+(ch-h)/2,w,h,rot})});
+ return {out,n:Math.ceil(ts.length/N)}}
+async function creaPdf(pages,m){
+ const enc=new TextEncoder(),parts=[],offs=[];let len=0;
+ const add=x=>{const b=typeof x==='string'?enc.encode(x):x;parts.push(b);len+=b.length};
+ const obj=(id,body)=>{offs[id]=len;add(id+' 0 obj\n'+body+'\nendobj\n')};
+ add('%PDF-1.4\n');
+ obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+ obj(2,'<< /Type /Pages /Kids ['+pages.map((_,i)=>(3+3*i)+' 0 R').join(' ')+'] /Count '+pages.length+' >>');
+ for(let i=0;i<pages.length;i++){
+  const cv=pages[i],bl=await new Promise(r=>cv.toBlob(r,'image/jpeg',0.88)),by=new Uint8Array(await bl.arrayBuffer());
+  const land=cv.width>cv.height,PWp=land?841.89:595.28,PHp=land?595.28:841.89,sc=Math.min((PWp-2*m)/cv.width,(PHp-2*m)/cv.height),w=cv.width*sc,h=cv.height*sc,x=(PWp-w)/2,y=(PHp-h)/2;
+  const ct='q '+w.toFixed(2)+' 0 0 '+h.toFixed(2)+' '+x.toFixed(2)+' '+y.toFixed(2)+' cm /Im0 Do Q';
+  obj(3+3*i,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+PWp+' '+PHp+'] /Resources << /XObject << /Im0 '+(5+3*i)+' 0 R >> >> /Contents '+(4+3*i)+' 0 R >>');
+  obj(4+3*i,'<< /Length '+ct.length+' >>\nstream\n'+ct+'\nendstream');
+  offs[5+3*i]=len;add((5+3*i)+' 0 obj\n<< /Type /XObject /Subtype /Image /Width '+cv.width+' /Height '+cv.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+by.length+' >>\nstream\n');add(by);add('\nendstream\nendobj\n')}
+ const tot=3+3*pages.length,xo=len;
+ let xr='xref\n0 '+tot+'\n0000000000 65535 f \n';
+ for(let id=1;id<tot;id++)xr+=String(offs[id]).padStart(10,'0')+' 00000 n \n';
+ add(xr+'trailer\n<< /Size '+tot+' /Root 1 0 R >>\nstartxref\n'+xo+'\n%%EOF');
+ return new Blob(parts,{type:'application/pdf'})}
+async function collagePdf(){
+ const fg=[...document.querySelectorAll('.foglio')];
+ if(!fg.length){return}
+ $('cli').textContent='Creo il PDF…';
+ try{
+  const px=mm=>mm*150/25.4,cvs=[];
+  for(const f of fg){
+   const cv=document.createElement('canvas');cv.width=Math.round(px(210));cv.height=Math.round(px(297));
+   const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,cv.width,cv.height);
+   for(const im of f.querySelectorAll('img'))x.drawImage(im,px(parseFloat(im.style.left)),px(parseFloat(im.style.top)),px(parseFloat(im.style.width)),px(parseFloat(im.style.height)));
+   cvs.push(cv)}
+  const blob=await creaPdf(cvs,0),nome='collage-'+oggiL()+'.pdf';
+  if(window.showSaveFilePicker){
+   try{const h=await showSaveFilePicker({suggestedName:nome,types:[{description:'PDF',accept:{'application/pdf':['.pdf']}}]});
+    const w=await h.createWritable();await w.write(blob);await w.close();toast('PDF salvato ✓');return
+   }catch(e){if(e&&e.name==='AbortError')return}}
+  await scaricaBlob(blob,nome);toast(nativo()?'Scegli dove salvare o stampare il PDF':'PDF creato: '+nome);
+ }catch(e){toast('PDF non creato: '+(e&&e.message||e),true)}
+ finally{$('cli').textContent=cvs0()}
+}
+const cvs0=()=>{const n=document.querySelectorAll('.foglio img').length,f=document.querySelectorAll('.foglio').length;return n+(n===1?' pagina':' pagine')+' su '+f+(f===1?' foglio A4':' fogli A4')};
+function scalaFogli(){const k=Math.min(1,(innerWidth-16)/793.7);document.querySelectorAll('.fw').forEach(w=>{w.style.width=793.7*k+'px';w.style.height=1117.2*k+'px';w.firstChild.style.transform='scale('+k+')'})}
+function chiudiCollage(){$('cl').classList.add('hide');$('clb').innerHTML=''}
+async function collage(){
+ const ids=[...sel].filter(id=>docs.some(d=>d.id===id&&d.pdf));
+ if(!ids.length){toast('Nessun documento con PDF selezionato',true);return}
+ $('cl').classList.remove('hide');$('cli').textContent='';
+ const body=$('clb');body.innerHTML='<p class="mut" id="clp">Preparo…</p>';
+ try{
+  const lib=await loadPdfjs(),tiles=[];
+  for(let k=0;k<ids.length;k++){
+   $('clp').textContent='Leggo il documento '+(k+1)+' di '+ids.length+'…';
+   const d=docs.find(x=>x.id===ids[k]);
+   const pdf=await lib.getDocument({data:await (await blobDi(d)).arrayBuffer()}).promise;
+   for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i),v=pg.getViewport({scale:1});tiles.push({pg,w:v.width,h:v.height})}}
+  const plan=layout(tiles,$('perf').value);
+  let h='';for(let k=0;k<plan.n;k++)h+='<div class="fw"><div class="foglio" id="fg'+k+'"></div></div>';
+  body.innerHTML='<p class="mut" id="clp"></p>'+h;
+  for(const p of plan.out){
+   $('clp').textContent='Preparo la pagina '+(p.i+1)+' di '+tiles.length+'…';
+   const t=tiles[p.i],bw=p.rot?t.h:t.w,vp=t.pg.getViewport({scale:Math.min((p.w/bw)*150/72,4),rotation:((t.pg.rotate||0)+(p.rot?90:0))%360});
+   const cv=document.createElement('canvas');cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);
+   await t.pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+   const im=document.createElement('img');im.src=cv.toDataURL('image/jpeg',0.85);
+   im.style.cssText='left:'+p.x*MM+'mm;top:'+p.y*MM+'mm;width:'+p.w*MM+'mm;height:'+p.h*MM+'mm';
+   $('fg'+p.sh).appendChild(im)}
+  $('clp').remove();scalaFogli();
+  $('cli').textContent=tiles.length+(tiles.length===1?' pagina':' pagine')+' su '+plan.n+(plan.n===1?' foglio A4':' fogli A4');
+ }catch(e){body.innerHTML='<p class="mut">Collage non riuscito: '+esc(e&&e.message||e)+'<br>Serve internet la prima volta per preparare le pagine.</p>'}
+}
+window.addEventListener('resize',scalaFogli);
+if(nativo()){const b=$('btnStampa');if(b)b.remove()}
+function chiudi(){$('vw').classList.add('hide');$('vwb').innerHTML=''}
+function apriTab(){if(!curB)return;const u=URL.createObjectURL(curB);const w=window.open(u,'_blank');if(!w)location.href=u}
+async function apri(id){const d=docs.find(x=>x.id===id);if(d&&d.pdf)mostra(await blobDi(d))}
+async function vediSel(){
+ const f=$('pdf').files[0];
+ if(f){mostra(f);return}
+ const d=editId&&docs.find(x=>x.id===editId);
+ if(d&&d.pdf){mostra(await blobDi(d));return}
+ toast('Nessun PDF selezionato',true);
+}
+
+function modifica(id){const d=docs.find(x=>x.id===id);editId=id;vai('add');
+ for(const [k,v] of [['tipi',d.tipo],['enti',d.ente]])if(v&&!meta[k].includes(v))meta[k].push(v);
+ fill();
+ $('tipo').value=d.tipo||'';$('num').value=d.num||'';$('data').value=d.data||'';$('ente').value=d.ente||'';$('desc').value=d.desc||'';$('tot').value=d.tot||'';$('detr').checked=!!d.detr;
+ $('m1').textContent=d.pdf?'PDF già associato: '+(d.pdfName||'documento.pdf')+' (scegline un altro solo per sostituirlo)':'';
+ $('salva').textContent='Salva modifiche';window.scrollTo(0,0)}
+let delId=null;
+async function elimina(id,btn){
+ if(delId!==id){delId=id;btn.textContent='Sicuro?';setTimeout(()=>{delId=null;btn.textContent='🗑'},3000);return}
+ delId=null;const d=docs.find(x=>x.id===id);if(!d)return;
+ try{await putDoc({...d,cestino:Date.now()});await carica()}catch(e){toast('⚠️ Non eliminato: '+(e&&e.message||e),true);return}
+ sel.delete(id);cerca();tipi();stato();barra();toast('Spostato nel cestino: lo puoi recuperare entro '+GIORNI+' giorni')}
+function cestino(){
+ const t=tutti.filter(d=>d.cestino).sort((a,b)=>b.cestino-a.cestino);
+ $('ctinfo').textContent=t.length?'I documenti eliminati restano qui '+GIORNI+' giorni, poi vengono cancellati.':'';
+ $('ctl').innerHTML=t.length?'<button class="del" onclick="svuotaCestino(this)">Svuota il cestino</button>'+t.map(d=>{const gg=Math.max(0,Math.ceil((d.cestino+GIORNI*864e5-Date.now())/864e5));
+  return `<div class="card"><b>${esc(d.tipo||'Documento')} ${esc(d.num)} · ${dt(d.data)}</b><div class="mut">${esc(d.ente||'(ente non indicato)')}${d.tot!==''&&d.tot!=null?' · '+eur(d.tot):''}</div><div>${esc(d.desc)}</div><div class="mut">Eliminato il ${dt(new Date(d.cestino).toISOString().slice(0,10))} · sparisce tra ${gg} giorni</div><div class="row" style="margin-top:8px"><button onclick="ripristinaDoc(${d.id})">↩ Ripristina</button><button class="del" onclick="elimDef(${d.id},this)">Elimina per sempre</button></div></div>`}).join(''):'<p class="mut">Il cestino è vuoto.</p>'}
+async function ripristinaDoc(id){const d=tutti.find(x=>x.id===id);if(!d)return;const c={...d};delete c.cestino;await putDoc(c);await carica();cerca();tipi();stato();cestino();toast('Documento ripristinato ✓')}
+let cdId=null,svT=false;
+async function elimDef(id,btn){if(cdId!==id){cdId=id;btn.textContent='Sicuro?';setTimeout(()=>{cdId=null;btn.textContent='Elimina per sempre'},3000);return}cdId=null;await delDoc(id);await carica();cestino();toast('Eliminato definitivamente')}
+async function svuotaCestino(btn){if(!svT){svT=true;btn.textContent='Sicuro? Cancella tutto';setTimeout(()=>{svT=false;btn.textContent='Svuota il cestino'},3000);return}svT=false;for(const d of tutti.filter(x=>x.cestino))await delDoc(d.id);await carica();cestino();toast('Cestino svuotato')}
+function vai(p,b){const L=['add','find','type','bk','trash'];L.forEach(x=>$('p-'+x).classList.toggle('hide',x!==p));
+ const bs=document.querySelectorAll('nav button');bs.forEach(x=>x.classList.remove('on'));bs[L.indexOf(p)].classList.add('on');
+ if(p==='find')cerca();if(p==='type')tipi();if(p==='bk')bfill();if(p==='trash')cestino()}
+
+function nativo(){return !!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())}
+async function scaricaBlob(blob,nome){
+ if(nativo()&&Capacitor.Plugins&&Capacitor.Plugins.Filesystem&&Capacitor.Plugins.Share){
+  const b64=await new Promise((ok,ko)=>{const f=new FileReader();f.onload=()=>ok(String(f.result).split(',')[1]);f.onerror=ko;f.readAsDataURL(blob)});
+  const w=await Capacitor.Plugins.Filesystem.writeFile({path:nome,data:b64,directory:'CACHE'});
+  await Capacitor.Plugins.Share.share({title:nome,url:w.uri,dialogTitle:'Scegli dove salvare'});return}
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nome;document.body.appendChild(a);a.click();a.remove()}
+const oggiL=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const annoDi=d=>(d.data||'').slice(0,4)||'-';
+const corr=(d,m,v)=>m==='tutto'||(m==='anno'?annoDi(d)===v:(d.tipo||'')===v);
+const slug=t=>String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'');
+const chiave=d=>[d.tipo,d.num,d.data,d.ente,d.desc,d.tot,d.pdfName].map(x=>String(x==null?'':x).trim().toLowerCase()).join('|');
+function opz(m,lista){
+ if(m==='anno')return [...new Set(lista.map(annoDi))].sort().reverse().map(y=>`<option value="${y}">${y==='-'?'Senza data':y}</option>`).join('');
+ return [...new Set(lista.map(d=>d.tipo||''))].sort().map(t=>`<option value="${esc(t)}">${t?esc(t):'(senza tipo)'}</option>`).join('')}
+function bfill(){const m=$('bscope').value,cur=$('bval').value;$('bval').classList.toggle('hide',m==='tutto');if(m!=='tutto'){$('bval').innerHTML=opz(m,docs);if([...$('bval').options].some(o=>o.value===cur))$('bval').value=cur}}
+async function backup(){
+ const m=$('bscope').value,v=$('bval').value,lista=docs.filter(d=>corr(d,m,v));
+ if(!lista.length){$('m2').textContent='Nessun documento da salvare con questo criterio.';return}
+ const crit=m==='tutto'?'tutto':m==='anno'?'anno-'+(v==='-'?'senza-data':v):'tipo-'+(slug(v)||'senza-tipo');
+ const nome='backup-'+crit+'-'+oggiL()+'.json';
+ let blob;
+ try{
+  const parts=['{"versione":2,"creato":"'+oggiL()+'","criterio":'+JSON.stringify({tipo:m,valore:v})+',"meta":'+JSON.stringify(meta)+',"docs":['];
+  for(let i=0;i<lista.length;i++){const c={...lista[i]};delete c.id;
+   c.pdf=c.pdf?(typeof c.pdf==='string'?c.pdf:await readFile(c.pdf)):null;
+   parts.push((i?',':'')+JSON.stringify(c))}
+  parts.push(']}');blob=new Blob(parts,{type:'application/json'});
+ }catch(e){$('m2').textContent='Backup non riuscito: '+(e&&e.message||e);return}
+ const sum=lista.length+' documenti, '+lista.filter(d=>d.pdf).length+' PDF';
+ if(window.showSaveFilePicker){
+  try{
+   const h=await showSaveFilePicker({suggestedName:nome,types:[{description:'Backup archivio',accept:{'application/json':['.json']}}]});
+   const w=await h.createWritable();await w.write(blob);await w.close();
+   $('m2').textContent='Backup salvato ✓ '+nome+' ('+sum+')';segnaBackup(m);return
+  }catch(e){if(e&&e.name==='AbortError'){$('m2').textContent='Backup annullato.';return}}
+ }
+ try{await scaricaBlob(blob,nome)}catch(e){if(!(e&&/cancel|annull/i.test(String(e.message||e)))){$('m2').textContent='Backup non riuscito: '+(e&&e.message||e);return}}
+ segnaBackup(m);
+ $('m2').textContent='Backup creato: '+nome+' ('+sum+'). '+(nativo()?'Dal menu che si è aperto scegli dove salvarlo (File, Drive…).':'Lo trovi in Download, o nella cartella che scegli se il browser te la chiede.');
+}
+
+let rj=null,rConf=false,rT=null;
+async function leggiBackup(f){
+ if(!f)return;rConf=false;
+ try{rj=JSON.parse(await f.text());if(!Array.isArray(rj.docs))throw new Error('x')}
+ catch(e){rj=null;$('rbox').classList.add('hide');$('m2').textContent='File di backup non valido.';return}
+ const c=rj.criterio||{tipo:'tutto'};
+ const desc=c.tipo==='anno'?'anno '+(c.valore==='-'?'senza data':c.valore):c.tipo==='tipo'?'tipo '+(c.valore||'senza tipo'):'tutto l’archivio';
+ $('rinfo').textContent='Backup di: '+desc+(rj.creato?' · del '+dt(rj.creato):'')+' · '+rj.docs.length+' documenti, '+rj.docs.filter(d=>d.pdf).length+' PDF';
+ $('rs').value=c.tipo==='anno'||c.tipo==='tipo'?c.tipo:'tutto';rsCambia();
+ if(c.tipo==='anno'||c.tipo==='tipo')$('rv').value=c.valore;
+ $('rbox').classList.remove('hide');$('m2').textContent='';$('rbtn').textContent='Ripristina';
+}
+function rsCambia(){const m=$('rs').value;$('rv').classList.toggle('hide',m==='tutto');if(m!=='tutto')$('rv').innerHTML=opz(m,rj.docs);rConf=false;$('rbtn').textContent='Ripristina'}
+async function ripristina(){
+ if(!rj)return;
+ const m=$('rs').value,v=$('rv').value,modo=$('rmodo').value,dal=rj.docs.filter(d=>corr(d,m,v));
+ if(!dal.length){$('m2').textContent='Nel backup non ci sono documenti per questo criterio.';return}
+ const via=modo==='sost'?docs.filter(d=>corr(d,m,v)):[];
+ if(modo==='sost'&&!rConf){
+  rConf=true;$('rbtn').textContent='Conferma: sostituisci';
+  $('m2').textContent='Verranno cancellati '+via.length+' documenti attuali e sostituiti con '+dal.length+' del backup. Tocca di nuovo per confermare.';
+  clearTimeout(rT);rT=setTimeout(()=>{rConf=false;$('rbtn').textContent='Ripristina'},6000);return}
+ rConf=false;$('rbtn').textContent='Ripristina';
+ try{
+  for(const k of ['tipi','enti'])((rj.meta||{})[k]||[]).forEach(x=>{if(!meta[k].some(y=>y.toLowerCase()===x.toLowerCase()))meta[k].push(x)});
+  for(const [k,f] of [['tipi','tipo'],['enti','ente']])dal.forEach(d=>{const x=d[f];if(x&&!meta[k].some(y=>y.toLowerCase()===x.toLowerCase()))meta[k].push(x)});
+  await putMeta();
+  for(const d of via)await delDoc(d.id);
+  await carica();
+  const ch=new Set(docs.map(chiave));let n=0,sk=0;
+  for(const d of dal){const k=chiave(d);if(ch.has(k)){sk++;continue}const c={...d};delete c.id;await putDoc(c);ch.add(k);n++}
+  await carica();fill();cerca();tipi();stato();barra();bfill();
+  $('m2').textContent=(modo==='sost'?'Sostituiti '+via.length+' documenti: ':'Integrazione completata: ')+'aggiunti '+n+(sk?', già presenti '+sk:'')+' ✓';
+ }catch(e){$('m2').textContent='Ripristino non riuscito: '+(e&&e.message||e)}
+}
+
+init();
+</script>
+</body>
+</html>
